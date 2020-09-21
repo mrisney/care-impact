@@ -1,5 +1,6 @@
 $(function () {
 
+    const AGENCY = "wy"
     const REST_SVC_BASE_URL = "http://dev.itis-app.com/care-rest";
 
     var impactAnalysisRequest = {
@@ -19,7 +20,7 @@ $(function () {
         loadMode: "raw",
         cacheRawData: true,
         load: function () {
-            return $.getJSON(REST_SVC_BASE_URL + '/api/v1/datasources');
+            return $.getJSON(REST_SVC_BASE_URL + '/api/v1/'+agency+'/datasources');
         }
     });
 
@@ -30,7 +31,7 @@ $(function () {
         cacheRawData: true,
         byKey: function (key) {
             var d = new $.Deferred();
-            $.get(REST_SVC_BASE_URL + '/api/v1/filters?datasource=' + key)
+            $.get(REST_SVC_BASE_URL + '/api/v1/'+agency+'/filters?datasource=' + key)
                 .done(function (dataItem) {
                     d.resolve(dataItem);
                 });
@@ -45,7 +46,7 @@ $(function () {
         cacheRawData: true,
         byKey: function (key) {
             var d = new $.Deferred();
-            $.get(REST_SVC_BASE_URL + '/api/v1/variables?datasource=' + key)
+            $.get(REST_SVC_BASE_URL + '/api/v1/'+agency+'/variables?datasource=' + key)
                 .done(function (dataItem) {
                     d.resolve(dataItem);
                 });
@@ -54,10 +55,9 @@ $(function () {
     });
 
     function getImpactAnalysisData() {
-        console.log("Impact analysis request =  " + JSON.stringify(impactAnalysisRequest));
-
+       
         $.ajax({
-            url: REST_SVC_BASE_URL + '/api/v1/impact-analysis',
+            url: REST_SVC_BASE_URL + '/api/v1/'+agency+'/impact-analysis',
             type: "POST",
             data: JSON.stringify(impactAnalysisRequest),
             contentType: "application/json; charset=utf-8",
@@ -65,16 +65,15 @@ $(function () {
             success: function (data) {
                 console.log(JSON.stringify(data));
                 frequencyAnalysisData = data;
-
                 $("#impact-grid-container").dxDataGrid("instance").option("dataSource", data);
                 $("#impact-grid-container").dxDataGrid("instance").refresh();
                 $("#impact-chart").dxChart("instance").option("dataSource", data);
                 $("#impact-chart").dxChart("instance").refresh();
-
             }
         });
     }
     function refreshForm(datasourceSelected) {
+     
         const filter1Editor = $("#impact-form-container").dxForm("instance").getEditor("filter1");
         const filter2Editor = $("#impact-form-container").dxForm("instance").getEditor("filter2");
 
@@ -85,7 +84,6 @@ $(function () {
             });
             filter1Editor.option("dataSource", filters);
             filter2Editor.option("dataSource", filters);
-            console.log("number of items : " + filters.length);
         });
 
         var firstVariableEditor = $("#impact-form-container").dxForm("instance").getEditor("variable1");
@@ -96,9 +94,7 @@ $(function () {
                 variables.push({ value: element.value });
             });
             firstVariableEditor.option("dataSource", variables);
-            console.log("number of items : " + variables.length);
         });
-
         $("#impact-grid-container").dxDataGrid("instance").refresh();
     }
 
@@ -111,7 +107,7 @@ $(function () {
             noNulls: false
         },
         colCount: 5,
-        labelLocation: "top", // or "left" | "right"
+        labelLocation: "top",
         items: [{
             dataField: "datasource",
             editorType: "dxSelectBox",
@@ -233,7 +229,7 @@ $(function () {
     });
     var chart = $("#impact-chart").dxChart({
         dataSource: initData,
-        palette: "soft",
+        palette: "bright",
         commonSeriesSettings: {
             type: "bar",
             valueField: "frequency1",
