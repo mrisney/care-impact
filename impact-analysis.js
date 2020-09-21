@@ -20,7 +20,7 @@ $(function () {
         loadMode: "raw",
         cacheRawData: true,
         load: function () {
-            return $.getJSON(REST_SVC_BASE_URL + '/api/v1/'+agency+'/datasources');
+            return $.getJSON(REST_SVC_BASE_URL + '/api/v1/'+AGENCY+'/datasources');
         }
     });
 
@@ -31,7 +31,7 @@ $(function () {
         cacheRawData: true,
         byKey: function (key) {
             var d = new $.Deferred();
-            $.get(REST_SVC_BASE_URL + '/api/v1/'+agency+'/filters?datasource=' + key)
+            $.get(REST_SVC_BASE_URL + '/api/v1/'+AGENCY+'/filters?datasource=' + key)
                 .done(function (dataItem) {
                     d.resolve(dataItem);
                 });
@@ -46,7 +46,7 @@ $(function () {
         cacheRawData: true,
         byKey: function (key) {
             var d = new $.Deferred();
-            $.get(REST_SVC_BASE_URL + '/api/v1/'+agency+'/variables?datasource=' + key)
+            $.get(REST_SVC_BASE_URL + '/api/v1/'+AGENCY+'/variables?datasource=' + key)
                 .done(function (dataItem) {
                     d.resolve(dataItem);
                 });
@@ -57,7 +57,7 @@ $(function () {
     function getImpactAnalysisData() {
        
         $.ajax({
-            url: REST_SVC_BASE_URL + '/api/v1/'+agency+'/impact-analysis',
+            url: REST_SVC_BASE_URL + '/api/v1/'+AGENCY+'/impact-analysis',
             type: "POST",
             data: JSON.stringify(impactAnalysisRequest),
             contentType: "application/json; charset=utf-8",
