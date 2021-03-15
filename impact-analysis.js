@@ -1,7 +1,7 @@
 $(function () {
 
     const AGENCY = "wy"
-    const REST_SVC_BASE_URL = "http://dev.itis-app.com/care-rest";
+    const REST_SVC_BASE_URL = "http://localhost:9090/care-rest";
 
     var impactAnalysisRequest = {
         dataSourceName: null,
@@ -13,6 +13,7 @@ $(function () {
     };
 
     var impactAnalysisData = [];
+    var impactAnalysisChartData = [];
 
     // datasources lookup
     var dataSourcesDS = new DevExpress.data.CustomStore({
@@ -20,7 +21,7 @@ $(function () {
         loadMode: "raw",
         cacheRawData: true,
         load: function () {
-            return $.getJSON(REST_SVC_BASE_URL + '/api/v1/'+AGENCY+'/datasources');
+            return $.getJSON(REST_SVC_BASE_URL + '/api/v1/' + AGENCY + '/datasources');
         }
     });
 
@@ -31,7 +32,7 @@ $(function () {
         cacheRawData: true,
         byKey: function (key) {
             var d = new $.Deferred();
-            $.get(REST_SVC_BASE_URL + '/api/v1/'+AGENCY+'/filters?datasource=' + key)
+            $.get(REST_SVC_BASE_URL + '/api/v1/' + AGENCY + '/filters?datasource=' + key)
                 .done(function (dataItem) {
                     d.resolve(dataItem);
                 });
@@ -46,7 +47,7 @@ $(function () {
         cacheRawData: true,
         byKey: function (key) {
             var d = new $.Deferred();
-            $.get(REST_SVC_BASE_URL + '/api/v1/'+AGENCY+'/variables?datasource=' + key)
+            $.get(REST_SVC_BASE_URL + '/api/v1/' + AGENCY + '/variables?datasource=' + key)
                 .done(function (dataItem) {
                     d.resolve(dataItem);
                 });
@@ -55,25 +56,41 @@ $(function () {
     });
 
     function getImpactAnalysisData() {
-       
+
         $.ajax({
-            url: REST_SVC_BASE_URL + '/api/v1/'+AGENCY+'/impact-analysis',
+            url: REST_SVC_BASE_URL + '/api/v1/' + AGENCY + '/impact-analysis',
             type: "POST",
             data: JSON.stringify(impactAnalysisRequest),
             contentType: "application/json; charset=utf-8",
             dataType: "json",
             success: function (data) {
                 console.log(JSON.stringify(data));
-                frequencyAnalysisData = data;
+                impactAnalysisData = data;
                 $("#impact-grid-container").dxDataGrid("instance").option("dataSource", data);
                 $("#impact-grid-container").dxDataGrid("instance").refresh();
+            }
+        });
+    }
+
+    function getImpactAnalysisChartData() {
+
+        $.ajax({
+            url: REST_SVC_BASE_URL + '/api/v1/' + AGENCY + '/impact-analysis-chart',
+            type: "POST",
+            data: JSON.stringify(impactAnalysisRequest),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (data) {
+                console.log(JSON.stringify(data));
+                impactAnalysisChartData = data;
                 $("#impact-chart").dxChart("instance").option("dataSource", data);
                 $("#impact-chart").dxChart("instance").refresh();
             }
         });
     }
+
     function refreshForm(datasourceSelected) {
-     
+
         const filter1Editor = $("#impact-form-container").dxForm("instance").getEditor("filter1");
         const filter2Editor = $("#impact-form-container").dxForm("instance").getEditor("filter2");
 
@@ -132,12 +149,15 @@ $(function () {
                 text: "Filter"
             },
             editorType: "dxSelectBox",
+            colSpan: 2,
             editorOptions: {
+                searchEnabled: true,
                 displayExpr: "value",
                 valueExpr: "value",
                 onValueChanged: function (data) {
                     impactAnalysisRequest.filter1Name = data.value;
                     getImpactAnalysisData();
+                    getImpactAnalysisChartData();
                 }
             },
             validationRules: [{
@@ -152,6 +172,7 @@ $(function () {
             },
             editorType: "dxSelectBox",
             editorOptions: {
+                searchEnabled: true,
                 displayExpr: "value",
                 valueExpr: "value",
                 label: {
@@ -161,6 +182,7 @@ $(function () {
                     $("#impact-grid-container").dxDataGrid("instance").columnOption("variableCodes", "caption", data.value.split(':')[1]);
                     impactAnalysisRequest.variableName = data.value;
                     getImpactAnalysisData();
+                    getImpactAnalysisChartData();
                 }
             }
         },
@@ -171,11 +193,13 @@ $(function () {
             },
             editorType: "dxSelectBox",
             editorOptions: {
+                searchEnabled: true,
                 displayExpr: "value",
                 valueExpr: "value",
                 onValueChanged: function (data) {
                     impactAnalysisRequest.filter2Name = data.value;
                     getImpactAnalysisData();
+                    getImpactAnalysisChartData();
                 }
             }
         },
@@ -198,6 +222,27 @@ $(function () {
 
     var dataGrid = $("#impact-grid-container").dxDataGrid({
         dataSource: initData,
+        export: {
+            enabled: true
+        },
+        onExporting: function (e) {
+            var workbook = new ExcelJS.Workbook();
+            var worksheet = workbook.addWorksheet('Impact Analysis');
+            DevExpress.excelExporter.exportDataGrid({
+                worksheet: worksheet,
+                component: e.component,
+                customizeCell: function (options) {
+                    var excelCell = options;
+                    excelCell.font = { name: 'Arial', size: 12 };
+                    excelCell.alignment = { horizontal: 'left' };
+                }
+            }).then(function () {
+                workbook.xlsx.writeBuffer().then(function (buffer) {
+                    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'impact-analysis.xlsx');
+                });
+            });
+            e.cancel = true;
+        },
         keyExpr: "id",
         showBorders: true,
         columns: [{ dataField: "variableCodes", caption: impactAnalysisRequest.variableName },
@@ -227,17 +272,51 @@ $(function () {
             }]
         }
     });
+    
     var chart = $("#impact-chart").dxChart({
-        dataSource: initData,
         palette: "bright",
+        dataSource: impactAnalysisChartData,
         commonSeriesSettings: {
-            type: "bar",
-            valueField: "frequency1",
-            argumentField: "variableCodes",
-            ignoreEmptyPoints: true
+            argumentField: "dataLabel",
+            valueField: "dataValue",
+            type: "bar"
         },
         seriesTemplate: {
-            nameField: "frequency1"
+            nameField: "dataName"
+        },
+        title: {
+            text: "",
+            subtitle: {
+                text: "Impact Analysis"
+            }
+        },
+        tooltip: {
+            enabled: true,
+            shared: true,
+            argumentFormat: "shortDateShortTime",
+            contentTemplate: function (pointInfo, element) {
+                var print = function (label, value) {
+                    var span = $("<span>", {
+                        "class": "tooltip-label",
+                        text: label
+                    });
+                    element.append($("<div>", {
+                        text: value
+                    }).prepend(span));
+                };
+                print("",  pointInfo.argument + ': ' + pointInfo.value);
+            }
+        },
+        crosshair: {
+            enabled: true,
+            horizontalLine: { visible: false }
+        },
+        "export": {
+            enabled: true
+        },
+        legend: {
+            verticalAlignment: "bottom",
+            horizontalAlignment: "center"
         }
     });
-});
+})
